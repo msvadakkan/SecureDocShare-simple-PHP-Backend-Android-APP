@@ -68,6 +68,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -463,28 +464,15 @@ fun PdfDocumentCard(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (pdf.isDemo) Color(0xFF1E3A3A) else Color(0xFF1F2E3E)
-                    ),
+                    .background(Color(0xFF1F2E3E)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = "Confidential secured badge",
-                    tint = if (pdf.isDemo) AccentTeal else GlowCyan,
+                    tint = GlowCyan,
                     modifier = Modifier.size(24.dp)
                 )
-                // tiny demo visual clip indicator
-                if (pdf.isDemo) {
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .align(Alignment.TopEnd)
-                            .offset(x = 4.dp, y = (-4).dp)
-                            .clip(CircleShape)
-                            .background(AccentTeal)
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.width(14.dp))
@@ -519,13 +507,13 @@ fun PdfDocumentCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (pdf.isDemo) "Demo Offline Asset" else "Network File",
-                        color = if (pdf.isDemo) AccentTeal else GlowCyan,
+                        text = "Network File",
+                        color = GlowCyan,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .background(
-                                (if (pdf.isDemo) AccentTeal else GlowCyan).copy(alpha = 0.08f),
+                                GlowCyan.copy(alpha = 0.08f),
                                 RoundedCornerShape(4.dp)
                             )
                             .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -611,6 +599,23 @@ fun SecurePdfViewerScreen(
     pages: List<Bitmap>,
     onClose: () -> Unit
 ) {
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        val window = (context as? android.app.Activity)?.window
+        if (window != null) {
+            val controller = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        onDispose {
+            val window = (context as? android.app.Activity)?.window
+            if (window != null) {
+                val controller = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
     Surface(
         color = DarkBackground,
         modifier = Modifier

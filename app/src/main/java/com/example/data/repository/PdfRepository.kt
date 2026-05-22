@@ -39,12 +39,9 @@ class PdfRepository(private val pdfDao: PdfDao) {
                 val bodyString = response.body?.string() ?: ""
                 val fetchedDocs = parseResponse(bodyString, fullUrl)
                 
-                if (fetchedDocs.isNotEmpty()) {
-                    pdfDao.refreshNetworkPdfs(fetchedDocs)
-                    Result.success(fetchedDocs)
-                } else {
-                    Result.failure(Exception("No documents found at endpoint"))
-                }
+                // Always sync database with fetchedDocs so it accurately reflects current server state
+                pdfDao.refreshNetworkPdfs(fetchedDocs)
+                Result.success(fetchedDocs)
             }
         } catch (e: Exception) {
             Log.e("PdfRepository", "Error fetching documents", e)

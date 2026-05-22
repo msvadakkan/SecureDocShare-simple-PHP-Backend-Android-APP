@@ -94,41 +94,6 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
         refreshDocuments()
     }
 
-    private fun preloadDemoFiles() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val demos = listOf(
-                PdfDocument(
-                    id = "demo_1",
-                    name = "SOP-PH-042_Manufacturing_QA_v3.pdf",
-                    title = "QA Manufacturing Protocol v3",
-                    url = "https://magenta-pharma.com/DocShare/files/sop_ph_042.pdf",
-                    dateAdded = "2026-05-10 (Preloaded)",
-                    fileSize = "2.4 MB",
-                    isDemo = true
-                ),
-                PdfDocument(
-                    id = "demo_2",
-                    name = "Catalog_Magenta_Pharma_Aspirin_v8.pdf",
-                    title = "Chemical Compound Catalog 2026",
-                    url = "https://magenta-pharma.com/DocShare/files/catalog_aspirin_v8.pdf",
-                    dateAdded = "2026-05-15 (Preloaded)",
-                    fileSize = "1.8 MB",
-                    isDemo = true
-                ),
-                PdfDocument(
-                    id = "demo_3",
-                    name = "Guide_DocShare_Device_Policy.pdf",
-                    title = "Secure Information Handling Policy",
-                    url = "https://magenta-pharma.com/DocShare/files/device_security_policy.pdf",
-                    dateAdded = "2026-05-20 (Preloaded)",
-                    fileSize = "950 KB",
-                    isDemo = true
-                )
-            )
-            repository.insertDemoPdfs(demos)
-        }
-    }
-
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
     }
@@ -151,6 +116,11 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
             isRefreshing = true
             errorMessage = null
             
+            // Clear the existing state/list first so the list is empty/fresh immediately
+            withContext(Dispatchers.IO) {
+                database.pdfDao().clearNetworkPdfs()
+            }
+            
             val result = withContext(Dispatchers.IO) {
                 repository.fetchDocumentsFromApi(apiBaseUrl, apiPath)
             }
@@ -159,7 +129,7 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
                 Log.d("PdfViewModel", "Successfully refreshed network index with ${it.size} files")
             }.onFailure { e ->
                 Log.e("PdfViewModel", "Failed to sync index with remote server", e)
-                errorMessage = "Could not reach server: ${e.localizedMessage}. Loaded preloaded local assets."
+                errorMessage = "Could not reach server: ${e.localizedMessage}"
             }
             
             isRefreshing = false
@@ -173,29 +143,9 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                if (pdf.isDemo) {
-                    // Simulating a highly polished secure download + page rendering
-                    pdfLoadingState = PdfLoadingState.Downloading(0.3f)
-                    withContext(Dispatchers.Default) {
-                        Thread.sleep(300)
-                    }
-                    pdfLoadingState = PdfLoadingState.Downloading(0.7f)
-                    withContext(Dispatchers.Default) {
-                        Thread.sleep(300)
-                    }
-                    pdfLoadingState = PdfLoadingState.Opening
-                    
-                    val generatedPages = withContext(Dispatchers.Default) {
-                        generateDemoDocument(pdf.title, 3)
-                    }
-                    
-                    pdfPages = generatedPages
-                    pdfLoadingState = PdfLoadingState.Success
-                } else {
-                    // Download actual PDF file securely to isolated app cache
-                    withContext(Dispatchers.IO) {
-                        downloadAndRenderPdf(context, pdf)
-                    }
+                // Download actual PDF file securely to isolated app cache
+                withContext(Dispatchers.IO) {
+                    downloadAndRenderPdf(context, pdf)
                 }
             } catch (e: Exception) {
                 Log.e("PdfViewModel", "Failed to load PDF file", e)
