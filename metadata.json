@@ -1,0 +1,6 @@
+{
+  "name": "DocShare",
+  "description": "Securely view PDF documents from SafeDocShare panel. Screenshots, copying, and sharing are strictly disabled to protect sensitive corporate assets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
