@@ -90,10 +90,6 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     init {
-        // Clean up any remaining demo entries and sync only with server
-        viewModelScope.launch(Dispatchers.IO) {
-            database.pdfDao().clearNetworkPdfs() // This clears network PDFs, wait let's clear everything OR we can just fetch fresh
-        }
         // Silently sync with server on start up
         refreshDocuments()
     }
