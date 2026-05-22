@@ -214,9 +214,11 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun renderNativePdfFile(file: File) {
         withContext(Dispatchers.Default) {
+            var fileDescriptor: ParcelFileDescriptor? = null
+            var pdfRenderer: PdfRenderer? = null
             try {
-                val fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-                val pdfRenderer = PdfRenderer(fileDescriptor)
+                fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                pdfRenderer = PdfRenderer(fileDescriptor)
                 val count = pdfRenderer.pageCount
                 val pageBitmaps = ArrayList<Bitmap>(count)
 
@@ -227,9 +229,16 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
 
                     val page = pdfRenderer.openPage(i)
 
-                    // Render crisp detailed document (2.0x scale for high resolution)
-                    val width = (page.width * 2.0f).toInt()
-                    val height = (page.height * 2.0f).toInt()
+                    // Robust memory cap: Cap max rendering width to 900 pixels
+                    val originalWidth = page.width
+                    val originalHeight = page.height
+                    val scale = if (originalWidth > 900) {
+                        900f / originalWidth
+                    } else {
+                        1.0f
+                    }
+                    val width = (originalWidth * scale).toInt()
+                    val height = (originalHeight * scale).toInt()
                     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                     
                     val canvas = android.graphics.Canvas(bitmap)
@@ -241,9 +250,6 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
                     page.close()
                 }
 
-                pdfRenderer.close()
-                fileDescriptor.close()
-
                 // Security Masterpiece: Secure check out by immediately destroying downloaded PDF file content on disk.
                 // Decrypted data is held strictly inside JVM Ram sandbox!
                 file.delete()
@@ -253,12 +259,18 @@ class PdfViewModel(application: Application) : AndroidViewModel(application) {
                     pdfLoadingState = PdfLoadingState.Success
                 }
 
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e("PdfViewModel", "Error rendering file descriptor pages", e)
                 withContext(Dispatchers.Main) {
                     pdfLoadingState = PdfLoadingState.Error("Failed to render pages: ${e.localizedMessage}")
                 }
             } finally {
+                try {
+                    pdfRenderer?.close()
+                } catch (ignored: Exception) {}
+                try {
+                    fileDescriptor?.close()
+                } catch (ignored: Exception) {}
                 if (file.exists()) file.delete()
             }
         }

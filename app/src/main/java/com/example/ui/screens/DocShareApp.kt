@@ -601,17 +601,45 @@ fun SecurePdfViewerScreen(
 ) {
     val context = LocalContext.current
     DisposableEffect(Unit) {
-        val window = (context as? android.app.Activity)?.window
+        val activity = let {
+            var currentContext = context
+            while (currentContext is android.content.ContextWrapper) {
+                if (currentContext is android.app.Activity) {
+                    return@let currentContext
+                }
+                currentContext = currentContext.baseContext
+            }
+            null
+        }
+        val window = activity?.window
         if (window != null) {
-            val controller = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-            controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            try {
+                val controller = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } catch (e: Throwable) {
+                android.util.Log.e("DocShareApp", "Failed to hide system bars", e)
+            }
         }
         onDispose {
-            val window = (context as? android.app.Activity)?.window
-            if (window != null) {
-                val controller = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-                controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            val dbActivity = let {
+                var currentContext = context
+                while (currentContext is android.content.ContextWrapper) {
+                    if (currentContext is android.app.Activity) {
+                        return@let currentContext
+                    }
+                    currentContext = currentContext.baseContext
+                }
+                null
+            }
+            val dbWindow = dbActivity?.window
+            if (dbWindow != null) {
+                try {
+                    val controller = androidx.core.view.WindowCompat.getInsetsController(dbWindow, dbWindow.decorView)
+                    controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                } catch (e: Throwable) {
+                    android.util.Log.e("DocShareApp", "Failed to restore system bars", e)
+                }
             }
         }
     }
